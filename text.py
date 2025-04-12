@@ -7,10 +7,16 @@ import matplotlib.pyplot as plt
 def get_stock_data(ticker):
     # 下载数据
     data = yf.download(ticker, start="2015-01-01", end="2024-01-01")
-    # 保留 'Date' 和 'Adj Close' 列
-    data = data[['Adj Close']]
+    print(data.columns)  # 打印列名检查数据
+    # 保留 'Adj Close' 和 'Date' 列
+    if 'Adj Close' in data.columns:
+        data = data[['Adj Close']]
+    else:
+        # 如果没有 'Adj Close' 列，尝试使用 'Close' 列
+        data = data[['Close']]
+    
     # 重命名列名，Prophet 需要 'ds' 和 'y'
-    data = data.rename(columns={'Adj Close': 'y'})
+    data = data.rename(columns={'Adj Close': 'y'} if 'Adj Close' in data.columns else {'Close': 'y'})
     data['ds'] = data.index
     return data
 
