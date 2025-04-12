@@ -25,8 +25,8 @@ def preprocess_data(df):
     print("Before conversion:")
     print(df['y'].head())  # 打印原始数据
     
-    # 确保 'y' 列是 Series 类型，并转为数值型
-    df['y'] = pd.Series(df['y'])
+    # 确保 'y' 是单列 Series 数据
+    df['y'] = df['y'].squeeze()  # 转换为一维数据
     
     # 将 'y' 列转为数值型，如果有无效数据则转为 NaN
     df['y'] = pd.to_numeric(df['y'], errors='coerce')  # 非数值的转换为 NaN
