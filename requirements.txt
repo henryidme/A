@@ -1,0 +1,6 @@
+yfinance
+prophet
+streamlit
+matplotlib
+plotly
+pandas
