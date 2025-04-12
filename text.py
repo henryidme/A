@@ -22,10 +22,21 @@ def get_stock_data(ticker):
 
 # 处理数据：确保 'y' 列是数值型，并处理缺失值
 def preprocess_data(df):
-    # 将 'y' 列转为数值型
+    print("Before conversion:")
+    print(df['y'].head())  # 打印原始数据
+    
+    # 确保 'y' 列是 Series 类型，并转为数值型
+    df['y'] = pd.Series(df['y'])
+    
+    # 将 'y' 列转为数值型，如果有无效数据则转为 NaN
     df['y'] = pd.to_numeric(df['y'], errors='coerce')  # 非数值的转换为 NaN
+    
     # 处理缺失值（填充缺失值）
     df['y'].fillna(df['y'].mean(), inplace=True)
+    
+    print("After conversion:")
+    print(df['y'].head())  # 打印转换后的数据
+    
     return df
 
 # 使用 Prophet 模型进行股票预测
