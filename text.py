@@ -1,76 +1,51 @@
+import streamlit as st
 import yfinance as yf
 import pandas as pd
-from prophet import Prophet
-import matplotlib.pyplot as plt
 
-# 获取股票数据
-def get_stock_data(ticker):
-    # 下载数据
-    data = yf.download(ticker, start="2015-01-01", end="2024-01-01")
-    print(data.columns)  # 打印列名检查数据
-    # 保留 'Adj Close' 和 'Date' 列
-    if 'Adj Close' in data.columns:
-        data = data[['Adj Close']]
-    else:
-        # 如果没有 'Adj Close' 列，尝试使用 'Close' 列
-        data = data[['Close']]
-    
-    # 重命名列名，Prophet 需要 'ds' 和 'y'
-    data = data.rename(columns={'Adj Close': 'y'} if 'Adj Close' in data.columns else {'Close': 'y'})
-    data['ds'] = data.index
-    return data
+st.set_page_config(page_title="美股财报查询", layout="centered")
 
-# 处理数据：确保 'y' 列是数值型，并处理缺失值
-def preprocess_data(df):
-    print("Before conversion:")
-    print(df['y'].head())  # 打印原始数据
-    
-    # 确保 'y' 是单列 Series 数据
-    df['y'] = df['y'].squeeze()  # 转换为一维数据
-    
-    # 将 'y' 列转为数值型，如果有无效数据则转为 NaN
-    df['y'] = pd.to_numeric(df['y'], errors='coerce')  # 非数值的转换为 NaN
-    
-    # 处理缺失值（填充缺失值）
-    df['y'].fillna(df['y'].mean(), inplace=True)
-    
-    print("After conversion:")
-    print(df['y'].head())  # 打印转换后的数据
-    
-    return df
+def get_financials(ticker):
+    stock = yf.Ticker(ticker)
 
-# 使用 Prophet 模型进行股票预测
-def predict_stock_price(df):
-    # 创建并拟合 Prophet 模型
-    model = Prophet()
-    model.fit(df)
-    
-    # 创建未来的数据框架（预测未来 365 天）
-    future = model.make_future_dataframe(df, periods=365)
-    
-    # 进行预测
-    forecast = model.predict(future)
-    
-    # 可视化结果
-    model.plot(forecast)
-    plt.show()
+    try:
+        financials = stock.financials
+        balance_sheet = stock.balance_sheet
+        cashflow = stock.cashflow
+        info = stock.info
+        latest_col = financials.columns[0]
+    except Exception as e:
+        return None, f"数据获取失败：{e}"
 
-    return forecast
+    try:
+        data = {
+            "公司名称": info.get("longName", ""),
+            "股票代码": ticker,
+            "财报年度": latest_col.year,
+            "总收入 (Revenue)": financials.loc["Total Revenue", latest_col],
+            "营业利润 (Operating Income)": financials.loc["Operating Income", latest_col],
+            "净利润 (Net Income)": financials.loc["Net Income", latest_col],
+            "每股收益 EPS": info.get("trailingEps", None),
+            "总资产": balance_sheet.loc["Total Assets", latest_col],
+            "总负债": balance_sheet.loc["Total Liab", latest_col],
+            "股东权益": balance_sheet.loc["Total Stockholder Equity", latest_col],
+            "经营现金流": cashflow.loc["Total Cash From Operating Activities", latest_col],
+            "自由现金流 FCF": cashflow.loc["Free Cash Flow", latest_col] if "Free Cash Flow" in cashflow.index else "N/A"
+        }
 
-# 主函数
-def main():
-    # 获取股票数据
-    ticker = 'AAPL'  # 你可以替换成你想要分析的股票代码
-    data = get_stock_data(ticker)
-    
-    # 预处理数据
-    data = preprocess_data(data)
-    
-    # 进行预测
-    forecast = predict_stock_price(data)
-    
-    # 显示预测结果
-    print(forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail())
+        df = pd.DataFrame(data.items(), columns=["指标", "数值"])
+        return df, None
+    except Exception as e:
+        return None, f"解析失败：{e}"
 
-if __name__ == "__main__":
-    main()
+# UI
+st.title("📊 美股财报信息查询工具")
+ticker_input = st.text_input("请输入美股代码（如 AAPL、MSFT、TSLA）:", value="AAPL")
+
+if st.button("查询财报信息"):
+    with st.spinner("正在加载数据..."):
+        df, error = get_financials(ticker_input.upper())
+        if error:
+            st.error(error)
+        else:
+            st.success("查询成功！以下是财报关键信息：")
+            st.dataframe(df)
